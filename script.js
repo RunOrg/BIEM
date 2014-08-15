@@ -215,7 +215,7 @@ function render_chatroom(id) {
 
 	// A 'new post' form
 	var $form = el('form')
-	    .submit(create_post(chat,'Post',$posts))
+	    .submit(create_post(chat,'Post',$posts,true))
 	    .appendTo($chat);
 
 	el('textarea')
@@ -249,7 +249,7 @@ function render_chatroom(id) {
 	$posts
 	    .appendTo($chat);
 
-	return load_posts(0).then(render_posts_page(0,load_posts,$posts));
+	return load_posts(0).then(render_posts_page(0,load_posts,$posts,false));
     }
 
     // Delete a chatroom and return to list
@@ -276,6 +276,15 @@ function render_chatroom(id) {
 	    limit: count_per_page, 
 	    offset: page * count_per_page 
 	});
+    }
+
+    function load_replies(post) {
+	return function(page) {
+	    return post.Replies({ 
+		limit: count_per_page, 
+		offset: page * count_per_page 
+	    });
+	};
     }
 
     // Appends a rendering of the specified post to a page
@@ -331,8 +340,45 @@ function render_chatroom(id) {
 		})
 		.appendTo($post);		   
 	    
-	    // TODO: 'reply' form and sub-comments
+	    // The list of all replies, rendered recursively. 
+	    var $replies = el('div')
+		.style({'padding-left':'20px'})
+		.appendTo($post);
+
+	    post.tree.sub.forEach(function(reply) {
+		render_post($replies,true)(reply);
+	    });
 	    
+	    if(post.tree.sub.length < post.tree.count) {
+
+		var $more = el('button')
+		    .addClass('more')
+		    .text('Réponses précédentes...')
+		    .click(show_more_replies);
+
+		$more.prependTo($replies);
+
+		function show_more_replies() {		  
+		    var more = load_replies(post);
+		    $more.remove();
+		    more(0).then(render_posts_page(0,more,$replies,true));    
+		}
+
+	    }
+
+	    // The reply form
+	    var $reply = el('form')
+		.submit(create_post(post,'Reply',$replies,false))
+		.appendTo($post);
+
+	    el('textarea')
+		.attr({'placeholder': 'Réponse...'})
+		.appendTo($reply);
+	    
+	    el('button')
+		.attr({'type': 'submit'})
+		.appendTo($reply);
+
 	};
     }
 
@@ -348,22 +394,24 @@ function render_chatroom(id) {
     // Displays a list of posts in the specified target, along with a
     // 'more' button 
     //
-    function render_posts_page(page, more, $target) {
+    function render_posts_page(page, more, $target, prepend) {
 	return function(posts) {
 
-	    posts.forEach(render_post($target));
+	    posts.forEach(render_post($target,prepend));
 
 	    if (posts.length == count_per_page) {
 
 		var $more = el('button')
 		    .addClass('more')
 		    .text('Plus de messages...')
-		    .click(show_more)
-		    .appendTo($target);
+		    .click(show_more);
+
+		if (prepend) $more.prependTo($target);
+		else $more.appendTo($target);
 
 		function show_more() {		  
 		    $more.remove();
-		    more(page + 1).then(render_posts_page(page + 1,more,$target));    
+		    more(page + 1).then(render_posts_page(page + 1,more,$target,prepend));    
 		}
 	    }
 
@@ -375,7 +423,7 @@ function render_chatroom(id) {
     //
     // Newly created post is then prepended to the $target
     // 
-    function create_post(target,method,$target) {
+    function create_post(target,method,$target,prepend) {
 	return function() {
 
 	    // Here, 'this' is the form.
@@ -395,7 +443,7 @@ function render_chatroom(id) {
 		post.Track(true);
 		post.Load().then(function(post) {
 		    post.track = true; // <-- we didn't wait for server reply
-		    render_post($target,true)(post);
+		    render_post($target,prepend)(post);
 		});
 	    });
 

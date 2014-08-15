@@ -72,6 +72,21 @@ function el(tag) {
     return $('<' + tag + '></' + tag + '>');
 }
 
+// Properly escapes a reply before sending it to the server
+//
+function escape_reply(text) {
+
+    var no_html = text.replace(/&/g,'&amp;')
+	.replace(/</g,'&lt;')
+	.replace(/>/g,'&gt;')
+	.replace(/"/g,'&quot;')
+	.trim();
+
+    var paragraphs = no_html.split(/\n[\t\n ]*\n/);
+    
+    return '<p>' + paragraphs.join('</p><p>') + '</p>';
+}
+
 // Renders the list of all chat-rooms
 // 
 function render_chatroom_list() {
@@ -437,8 +452,11 @@ function render_chatroom(id) {
 
 	    var $form = $(this);
 
-	    var body = $form.find('textarea').val();
+	    var body = $form.find('textarea').val().trim();
 	    if (body == '') return false; // <-- TODO: improve error message
+
+	    body = escape_reply(body);
+	    console.log("Body: %s", body);
 
 	    $form.find('textarea').val('');
 

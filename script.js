@@ -227,10 +227,42 @@ function render_chatroom(id) {
 	    .text('Publier')
 	    .appendTo($form);
 
+	// A 'delete form' button
+	if ($.inArray("admin",chat.access)) {
+	    el('button')
+		.text('Supprimer conversation')
+		.click(delete_chat(chat))
+		.appendTo($form);
+	}
+	
+	// A follow/unfollow button for the conversation 
+	var tracked = chat.track;
+	el('button')
+	    .text(tracked ? "Se désabonner" : "S'abonner")
+	    .click(function() {
+		tracked = !tracked;
+		$(this).text(tracked ? "Se désabonner" : "S'abonner");
+		chat.Track(tracked);
+	    })
+	    .appendTo($chat);		   
+
 	$posts
 	    .appendTo($chat);
-	
+
 	return load_posts(0).then(render_posts_page(0,load_posts,$posts));
+    }
+
+    // Delete a chatroom and return to list
+    //
+    function delete_chat(chat) {
+
+	// Avoid multiple deletion calls (cleaner that way)
+	var deleted = false;
+	return function() {
+	    if (deleted) return;
+	    deleted = true;
+	    chat.Delete().then(render_chatroom_list);
+	};
     }
 
     // This dictionary contains the identifiers of all posts already 
@@ -279,10 +311,38 @@ function render_chatroom(id) {
 		.addClass('body')
 		.html(post.body)
 		.appendTo($post);
+
+	    // Deletion is only allowed to moderators or post owners
+	    if ($.inArray('moderate',chat.access) || RunOrg.as === post.author) {
+		el('button')
+		    .text('Supprimer message')
+		    .click(delete_post(post,$post))
+		    .appendTo($post);			    
+	    }
+
+	    // A follow/unfollow button for the post 
+	    var tracked = post.track;
+	    el('button')
+		.text(tracked ? "Se désabonner" : "S'abonner")
+		.click(function() {
+		    tracked = !tracked;
+		    $(this).text(tracked ? "Se désabonner" : "S'abonner");
+		    post.Track(tracked);
+		})
+		.appendTo($post);		   
 	    
 	    // TODO: 'reply' form and sub-comments
 	    
 	};
+    }
+
+    // Deletes a post and removes it from the chatroom
+    //
+    function delete_post(post,$post) {
+	return function() {
+	    $post.remove();
+	    post.Delete(); // <-- not waiting for server response
+	}
     }
 
     // Displays a list of posts in the specified target, along with a
@@ -332,10 +392,11 @@ function render_chatroom(id) {
 	    target[method]({ body: body }).then(function(post) {
 
 		// Auto-subscribe to the posts I create
-		// (but don't wait for response from server)
-		post.Track(true); 
-		post.Load().then(render_post($target,true));
-
+		post.Track(true);
+		post.Load().then(function(post) {
+		    post.track = true; // <-- we didn't wait for server reply
+		    render_post($target,true)(post);
+		});
 	    });
 
 	    return false; 

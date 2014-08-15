@@ -296,6 +296,10 @@ function render_chatroom(id) {
 	    already_on_page[post.id] = true;
 	    
 	    var $post = el('div')
+		.css({ 
+		    'border' :'1px solid #CCC',
+		    'margin-bottom' : '4px'
+		})
 		.addClass('post');
 
 	    if (prepend) $post.prependTo($target);
@@ -342,14 +346,14 @@ function render_chatroom(id) {
 	    
 	    // The list of all replies, rendered recursively. 
 	    var $replies = el('div')
-		.style({'padding-left':'20px'})
+		.css({'padding-left':'20px'})
 		.appendTo($post);
 
-	    post.tree.sub.forEach(function(reply) {
+	    post.tree.top.forEach(function(reply) {
 		render_post($replies,true)(reply);
 	    });
 	    
-	    if(post.tree.sub.length < post.tree.count) {
+	    if(post.tree.top.length < post.tree.count) {
 
 		var $more = el('button')
 		    .addClass('more')
@@ -377,6 +381,7 @@ function render_chatroom(id) {
 	    
 	    el('button')
 		.attr({'type': 'submit'})
+		.text('Répondre')
 		.appendTo($reply);
 
 	};
